@@ -4,15 +4,12 @@ import sys
 import torch
 import wandb
 from redis import Redis
-from rlgym.utils.reward_functions.common_rewards import LiuDistancePlayerToBallReward
+from rlgym.utils.reward_functions.common_rewards import VelocityReward
 
 from rocket_learn.rollout_generator.redis_rollout_generator import RedisRolloutGenerator
 from training.agent import get_agent
-from training.immortalreward import ImmortalReward
 from training.obs import NectoObsTEST
-from training.parser import SetAction
-from training.reward import NectoRewardFunction
-import os
+from training.parser import NectoActionTEST
 
 WORKER_COUNTER = "worker-counter"
 
@@ -20,45 +17,32 @@ config = dict(
     seed=123,
     actor_lr=1e-4,
     critic_lr=1e-4,
-    n_steps=200_000,
-    batch_size=50_000,
-    minibatch_size=25_000,
+    # n_steps=1_000_000,
+    # batch_size=100_000,
+    # minibatch_size=25_000,
+    n_steps=100_000,
+    batch_size=20_000,
+    minibatch_size=10_000,
+    #epochs=30,
     epochs=30,
     gamma=0.995,
     iterations_per_save=10
 )
 
-# TODO fix empty folders
-def get_latest_checkpoint():
-    subdir = 'ppos'
-
-    all_subdirs = [os.path.join(subdir, d) for d in os.listdir(subdir) if os.path.isdir(os.path.join(subdir, d))]
-    latest_subdir = max(all_subdirs, key=os.path.getmtime)
-    all_subdirs = [os.path.join(latest_subdir, d) for d in os.listdir(latest_subdir) if
-                   os.path.isdir(os.path.join(latest_subdir, d))]
-    latest_subdir = (max(all_subdirs, key=os.path.getmtime))
-    full_dir = os.path.join(latest_subdir, 'checkpoint.pt')
-    print(full_dir)
-
-    return full_dir
-
-
 if __name__ == "__main__":
     from rocket_learn.ppo import PPO
+    run_id = None
 
-
-    #run_id = None
-    run_id = "1v3yd4ry"
-
+    print(sys.argv)
     _, ip, password = sys.argv
     wandb.login(key=os.environ["WANDB_KEY"])
-    logger = wandb.init(project="rocket-learn", entity=os.environ["entity"], id=run_id, config=config)
+    logger = wandb.init(project="RLImmortal2", entity="cosmicvivacity", id=run_id, config=config)
     torch.manual_seed(logger.config.seed)
 
     redis = Redis(host=ip, password=password)
     redis.delete(WORKER_COUNTER)  # Reset to 0
 
-    rollout_gen = RedisRolloutGenerator(redis, lambda: NectoObsTEST(6), ImmortalReward, SetAction,
+    rollout_gen = RedisRolloutGenerator(redis, lambda: NectoObsTEST(6), VelocityReward, NectoActionTEST,
                                         save_every=logger.config.iterations_per_save,
                                         logger=logger, clear=run_id is None)
 
@@ -76,10 +60,9 @@ if __name__ == "__main__":
     )
 
     if run_id is not None:
-        alg.load(get_latest_checkpoint())
-        #alg.load("ppos/rocket-learn_1644780574.2664182/rocket-learn_8900/checkpoint.pt")
-    # alg.agent.optimizer.param_groups[0]["lr"] = logger.config.actor_lr
-    # alg.agent.optimizer.param_groups[1]["lr"] = logger.config.critic_lr
+        alg.load("ppos/rocket-learn_1641320591.2569141/rocket-learn_9180/checkpoint.pt")
+        # alg.agent.optimizer.param_groups[0]["lr"] = logger.config.actor_lr
+        # alg.agent.optimizer.param_groups[1]["lr"] = logger.config.critic_lr
 
     log_dir = "E:\\log_directory\\"
     repo_dir = "E:\\repo_directory\\"

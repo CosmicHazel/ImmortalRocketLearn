@@ -1,8 +1,7 @@
-import numpy as np
 import torch
 from earl_pytorch import EARLPerceiver, ControlsPredictorDiscrete
 from torch import nn
-from torch.nn import Linear, Sequential, ReLU
+from torch.nn import Linear, ReLU
 
 from rocket_learn.agent.actor_critic_agent import ActorCriticAgent
 from rocket_learn.agent.discrete_policy import DiscretePolicy
@@ -29,8 +28,10 @@ def get_critic():
 
 
 def get_actor():
-    # split = (3, 3, 2, 2, 2)
-    split = (90,)
+    #split = (3, 3, 2, 2, 2)
+    #split = (90,)
+    split = (228,)
+    #split = (3, 3, 3, 3, 3, 2, 2, 2)
     return DiscretePolicy(Necto(EARLPerceiver(128, 1, 4, 1, query_features=32, key_value_features=24),
                                 ControlsPredictorDiscrete(128, splits=split)), split)
 

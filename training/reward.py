@@ -1,11 +1,12 @@
 import numpy as np
-from rlgym.utils import RewardFunction
-from rlgym.utils.common_values import CEILING_Z, BALL_MAX_SPEED, CAR_MAX_SPEED, BLUE_TEAM, BLUE_GOAL_BACK, \
-    BLUE_GOAL_CENTER, ORANGE_GOAL_BACK, ORANGE_GOAL_CENTER, BALL_RADIUS, ORANGE_TEAM
-from rlgym.utils.gamestates import GameState, PlayerData
-from rlgym.utils.math import cosine_similarity
 from numpy import exp
 from numpy.linalg import norm
+from rlgym.utils import RewardFunction
+from rlgym.utils.common_values import BALL_MAX_SPEED, CAR_MAX_SPEED, BLUE_GOAL_BACK, \
+    BLUE_GOAL_CENTER, ORANGE_GOAL_BACK, ORANGE_GOAL_CENTER, ORANGE_TEAM
+from rlgym.utils.gamestates import GameState, PlayerData
+from rlgym.utils.math import cosine_similarity
+from rlgym.utils.reward_functions.common_rewards import VelocityReward
 
 
 class NectoRewardFunction(RewardFunction):
@@ -147,13 +148,17 @@ class NectoRewardFunction(RewardFunction):
         self.rewards = None
         self.current_state = initial_state
         self.state_quality, self.player_qualities = self._state_qualities(initial_state)
+        VelocityReward(negative=False).reset(initial_state=initial_state)
 
     def get_reward(self, player: PlayerData, state: GameState, previous_action: np.ndarray) -> float:
         if state != self.current_state:
             self.last_state = self.current_state
             self.current_state = state
+            var = VelocityReward(negative=False).get_reward(player=player, state=state, previous_action=previous_action)
             self._calculate_rewards(state)
             self.n = 0
-        rew = self.rewards[self.n]
+        #rew = self.rewards[self.n]
         self.n += 1
-        return float(rew) / 3.2  # Divide to get std of expected reward to ~1 at start, helps value net a little
+
+        #return float(rew) / 3.2  # Divide to get std of expected reward to ~1 at start, helps value net a little
+        return float(VelocityReward(negative=False).get_reward(player=player, state=state, previous_action=previous_action)) / 3.2  # Divide to get std of expected reward to ~1 at start, helps value net a little

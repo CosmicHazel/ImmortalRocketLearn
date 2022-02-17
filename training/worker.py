@@ -4,19 +4,20 @@ from distutils.util import strtobool
 import torch
 from redis import Redis
 from rlgym.envs import Match
-from rlgym.utils.reward_functions.common_rewards import ConstantReward
+from rlgym.utils.reward_functions.common_rewards import VelocityReward, LiuDistancePlayerToBallReward
 from rlgym_tools.extra_state_setters.augment_setter import AugmentSetter
 
-from rocket_learn.rollout_generator.redis_rollout_generator import RedisRolloutWorker, _unserialize
+from rocket_learn.rollout_generator.redis_rollout_generator import RedisRolloutWorker
+from training.immortalreward import ImmortalReward
 from training.learner import WORKER_COUNTER
-from training.obs import NectoObsBuilder, NectoObsTEST
-from training.parser import NectoAction, NectoActionTEST
-from training.reward import NectoRewardFunction
+from training.obs import NectoObsTEST
+from training.parser import SetAction
 from training.state import NectoStateSetter
-from training.terminal import NectoTerminalCondition
+from training.terminal import ImmortalTerminalCondition
 
 
-def get_match(r, force_match_size, replay_arrays, game_speed=100):
+#def get_match(r, force_match_size, replay_arrays, game_speed=100):
+def get_match(r, force_match_size, redis, game_speed=100):
     order = (1, 2, 3, 1, 1, 2, 1, 1, 3, 2, 1)  # Close as possible number of agents
     # order = (1, 1, 2, 1, 1, 2, 3, 1, 1, 2, 3)  # Close as possible with 1s >= 2s >= 3s
     # order = (1,)
@@ -25,17 +26,22 @@ def get_match(r, force_match_size, replay_arrays, game_speed=100):
         team_size = force_match_size
 
     return Match(
+
         # reward_function=CombinedReward.from_zipped(
         #     (DiffReward(LiuDistancePlayerToBallReward()), 0.05),
         #     (DiffReward(LiuDistanceBallToGoalReward()), 10),
         #     (EventReward(touch=0.05, goal=10)),
         # ),
         # reward_function=NectoRewardFunction(goal_w=0, shot_w=0, save_w=0, demo_w=0, boost_w=0),
-        reward_function=NectoRewardFunction(team_spirit=0, opponent_punish_w=0),
-        terminal_conditions=NectoTerminalCondition(),
+        #reward_function=NectoRewardFunction(team_spirit=0, opponent_punish_w=0),
+        #reward_function=VelocityReward(negative=False),
+        reward_function=ImmortalReward(redis),
+        terminal_conditions=ImmortalTerminalCondition(redis),
         obs_builder=NectoObsTEST(n_players=6),
-        action_parser=NectoActionTEST(),
-        state_setter=AugmentSetter(NectoStateSetter(replay_arrays[team_size - 1])),
+        action_parser=SetAction(),
+        #action_parser=NectoAction(),
+        #state_setter=AugmentSetter(NectoStateSetter(replay_arrays[team_size - 1])),
+        state_setter=AugmentSetter(NectoStateSetter()),
         self_play=True,
         team_size=team_size,
         game_speed=game_speed,
@@ -48,19 +54,24 @@ def make_worker(host, name, password, limit_threads=True, send_gamestates=False,
         torch.set_num_threads(1)
     r = Redis(host=host, password=password)
     w = r.incr(WORKER_COUNTER) - 1
+    print(r.ping())
 
     current_prob = .8
-    eval_prob = .01
-    game_speed = 100
+    eval_prob = .00
+    game_speed = 30
     if is_streamer:
         current_prob = 1
         eval_prob = 0
         game_speed = 1
 
-    replay_arrays = _unserialize(r.get("replay-arrays"))
+    #try:
+        #replay_arrays = _unserialize(r.get("replay-arrays"))
+    #except:
+        #replay_arrays = []
 
     return RedisRolloutWorker(r, name,
-                              match=get_match(w, force_match_size, game_speed=game_speed, replay_arrays=replay_arrays),
+                              #match=get_match(w, force_match_size, game_speed=game_speed, replay_arrays=replay_arrays),
+                              match=get_match(w, force_match_size, r, game_speed=game_speed),
                               current_version_prob=current_prob,
                               evaluation_prob=eval_prob,
                               send_gamestates=send_gamestates,
@@ -73,7 +84,7 @@ def main():
 
     assert len(sys.argv) >= 4  # last is optional to force match size
 
-    force_match_size = None
+    force_match_size = 3
 
     print(len(sys.argv))
 

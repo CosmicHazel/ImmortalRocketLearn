@@ -1,6 +1,3 @@
-import os
-import random
-
 import numpy as np
 from rlgym.utils import StateSetter
 from rlgym.utils.common_values import CAR_MAX_SPEED, SIDE_WALL_X, BACK_WALL_Y, CEILING_Z, BALL_RADIUS, CAR_MAX_ANG_VEL, \
@@ -9,9 +6,8 @@ from rlgym.utils.math import rand_vec3
 from rlgym.utils.state_setters import DefaultState, StateWrapper
 
 # from rlgym_utils.extra_state_setters.goalie_state import GoaliePracticeState
-
-from numpy import random as rand
 from rlgym_tools.extra_state_setters.replay_setter import ReplaySetter
+
 from rlgym_tools.extra_state_setters.symmetric_setter import KickoffLikeSetter
 
 LIM_X = SIDE_WALL_X - 1152 / 2 - BALL_RADIUS * 2 ** 0.5
@@ -92,22 +88,25 @@ class BetterRandom(StateSetter):  # Random state with some triangular distributi
 
 class NectoStateSetter(StateSetter):
     def __init__(
-            self, replay_array, *,
-            replay_prob=0.7,
-            random_prob=0.2,
-            kickoff_prob=0.05,
-            kickofflike_prob=0.05
+            self,
+            # replay_array,
+            *,
+            replay_prob=0.50,
+            random_prob=0.00,
+            kickoff_prob=0.34,
+            kickofflike_prob=0.16
     ):  # add goalie_prob/shooting/dribbling?
 
         super().__init__()
 
         self.setters = [
-            ReplaySetter(replay_array),
+            ReplaySetter("replayfile"),
             BetterRandom(),
             DefaultState(),
             KickoffLikeSetter(),
         ]
         self.probs = np.array([replay_prob, random_prob, kickoff_prob, kickofflike_prob])
+        # self.probs = np.array([random_prob, kickoff_prob, kickofflike_prob])
         assert self.probs.sum() == 1, "Probabilities must sum to 1"
 
     def reset(self, state_wrapper: StateWrapper):
