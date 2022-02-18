@@ -115,3 +115,4 @@ ENV/
 /training/replayfile
 /training/replays/
 /training/wandb/
+/training/replayfile1v1

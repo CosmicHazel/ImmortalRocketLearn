@@ -17,15 +17,15 @@ import os
 WORKER_COUNTER = "worker-counter"
 
 config = dict(
-    seed=123,
-    actor_lr=1e-4,
-    critic_lr=1e-4,
-    n_steps=200_000,
-    batch_size=50_000,
-    minibatch_size=25_000,
+    seed=1234,
+    actor_lr=1e-5,
+    critic_lr=1e-5,
+    n_steps=500_000,
+    batch_size=100_000,
+    minibatch_size=50_000,
     epochs=30,
     gamma=0.995,
-    iterations_per_save=10
+    iterations_per_save=5
 )
 
 # TODO fix empty folders
@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
 
     #run_id = None
-    run_id = "1v3yd4ry"
+    run_id = "3f8f4ak6"
 
     _, ip, password = sys.argv
     wandb.login(key=os.environ["WANDB_KEY"])
@@ -75,9 +75,9 @@ if __name__ == "__main__":
         logger=logger,
     )
 
-    if run_id is not None:
-        alg.load(get_latest_checkpoint())
-        #alg.load("ppos/rocket-learn_1644780574.2664182/rocket-learn_8900/checkpoint.pt")
+    #if run_id is not None:
+    #alg.load(get_latest_checkpoint())
+    alg.load("ppos/rocket-learn_1645136428.1678982/rocket-learn_9070/checkpoint.pt")
     # alg.agent.optimizer.param_groups[0]["lr"] = logger.config.actor_lr
     # alg.agent.optimizer.param_groups[1]["lr"] = logger.config.critic_lr
 

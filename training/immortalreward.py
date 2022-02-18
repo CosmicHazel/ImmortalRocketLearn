@@ -15,11 +15,11 @@ class ImmortalReward(RewardFunction):
         self.vel_reward = 0
         self.event_reward = 0
         self.dtb_reward = 0
-        self.vtb_reward = 0
-        self.starting_n_updates = 2670.0
+        #self.vtb_reward = 0
+        self.starting_n_updates = 0.0
         self.n_touch_reward = 100.0
         self.n_dtb_reward = 1.0
-        self.n_vtb_reward = self._update_reward(starting_reward=0.0, max_reward=1.0)
+        #self.n_vtb_reward = self._update_reward(starting_reward=0.0, max_reward=1.0)
         self.event_reward_object = EventReward(touch=self.n_touch_reward)
         self.distance_to_ball_reward_object = LiuDistancePlayerToBallReward()
         self.vel_reward_object = VelocityReward()
@@ -48,22 +48,22 @@ class ImmortalReward(RewardFunction):
         print(f"Total event reward for episode: {self.event_reward}")
         print(f"Total velocity reward for episode: {self.vel_reward}")
         print(f"Total distance to ball reward for episode: {self.dtb_reward}")
-        print(f"Total velocity to ball reward for episode: {self.vtb_reward}")
+        #print(f"Total velocity to ball reward for episode: {self.vtb_reward}")
         self.event_reward = 0
         self.vel_reward = 0
         self.dtb_reward = 0
-        self.vtb_reward = 0
-        #new_n_touch_reward = self._update_reward(starting_reward=50.0, max_reward=100.0)
+        #self.vtb_reward = 0
+        # new_n_touch_reward = self._update_reward(starting_reward=0.0, max_reward=100.00)
         # if new_n_touch_reward > self.n_touch_reward:
         #     print(f"Updating touch reward to {new_n_touch_reward}")
         #     self.n_touch_reward = new_n_touch_reward
         #     self.event_reward_object = EventReward(touch=self.n_touch_reward)
-        #self.n_dtb_reward = self._update_reward(starting_reward=0.5, max_reward=1.0)
-        self.n_vtb_reward = self._update_reward(starting_reward=0.0, max_reward=1.0)
+        # self.n_dtb_reward = self._update_reward(starting_reward=1.0, max_reward=0.0)
+        #self.n_vtb_reward = self._update_reward(starting_reward=0.0, max_reward=1.0)
         self.vel_reward_object.reset(initial_state=initial_state)
         self.event_reward_object.reset(initial_state=initial_state)
         self.distance_to_ball_reward_object.reset(initial_state=initial_state)
-        self.vtb_reward_object.reset(initial_state=initial_state)
+        #self.vtb_reward_object.reset(initial_state=initial_state)
 
     def get_reward(self, player: PlayerData, state: GameState, previous_action: np.ndarray) -> float:
         this_reward = 0.0
@@ -78,10 +78,10 @@ class ImmortalReward(RewardFunction):
         self.dtb_reward += this_dtb_reward
         this_reward += this_dtb_reward
 
-        this_vtb_reward = self.n_vtb_reward * self.distance_to_ball_reward_object.get_reward(player=player, state=state,
-                                                                                             previous_action=previous_action)
-        self.vtb_reward += this_vtb_reward
-        this_reward += this_vtb_reward
+        #this_vtb_reward = self.n_vtb_reward * self.vtb_reward_object.get_reward(player=player, state=state,
+                                                                                #previous_action=previous_action)
+        #self.vtb_reward += this_vtb_reward
+        #this_reward += this_vtb_reward
         return this_reward
 
 
