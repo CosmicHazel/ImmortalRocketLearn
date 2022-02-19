@@ -57,8 +57,8 @@ def make_worker(host, name, password, limit_threads=True, send_gamestates=False,
     print(r.ping())
 
     current_prob = .8
-    eval_prob = .00
-    game_speed = 30
+    eval_prob = 0.01
+    game_speed = 100
     if is_streamer:
         current_prob = 1
         eval_prob = 0
@@ -84,7 +84,7 @@ def main():
 
     assert len(sys.argv) >= 4  # last is optional to force match size
 
-    force_match_size = 3
+    force_match_size = 1
 
     print(len(sys.argv))
 
@@ -114,7 +114,7 @@ def main():
 
         # atm, adding an extra arg assumes you're trying to stream
         stream_state = True
-        force_match_size = int(2)
+        force_match_size = int(1)
 
     elif len(sys.argv) == 7:
         _, name, ip, password, compress, is_stream, force_match_size = sys.argv

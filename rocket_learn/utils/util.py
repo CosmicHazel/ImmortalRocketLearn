@@ -8,7 +8,7 @@ from rlgym.utils.gamestates import GameState, PlayerData
 from rlgym.utils.obs_builders import AdvancedObs
 from rlgym.utils.reward_functions.common_rewards import ConstantReward
 from rlgym.utils.state_setters import DefaultState
-from rlgym.utils.terminal_conditions.common_conditions import GoalScoredCondition
+from rlgym.utils.terminal_conditions.common_conditions import GoalScoredCondition, NoTouchTimeoutCondition
 from torch import nn
 
 from rocket_learn.agent.policy import Policy
@@ -26,7 +26,7 @@ def generate_episode(env: Gym, policies: List[Policy], evaluate=False) -> (List[
         reward = env._match._reward_fn  # noqa
         game_condition = GameCondition(tick_skip=env._match._tick_skip,
                                        forfeit_spg_limit=10 * env._match._team_size)  # noqa
-        env._match._terminal_conditions = [game_condition, GoalScoredCondition()]  # noqa
+        env._match._terminal_conditions = [game_condition, GoalScoredCondition(), NoTouchTimeoutCondition(round(30 * 120 / env._match._tick_skip))]  # noqa
         env._match._state_setter = DefaultState()  # noqa
         env._match._reward_fn = ConstantReward()  # noqa Save some cpu cycles
 

@@ -3,33 +3,18 @@ from rlgym.utils.gamestates import GameState
 from rlgym.utils.terminal_conditions.common_conditions import TimeoutCondition, GoalScoredCondition
 
 
-# def NectoTerminalCondition(redis, tick_skip=8.0):
-#     seconds = 4.5
-#     # n_updates = int(redis.get("num-updates"))
-#     # inc_updates = float(n_updates - 4720)
-#     # if inc_updates > 120:
-#     #     seconds = 10.0
-#     # elif inc_updates > 0:
-#     #     seconds += inc_updates / 20.0
-#     #
-#     # print(seconds)
-#
-#     return (
-#         TimeoutCondition(round(seconds * 120 / tick_skip)),
-#         # NoTouchTimeoutCondition(round(30 * 120 / tick_skip)),
-#         GoalScoredCondition()
-#     )
-
-
 class ImmortalTerminalCondition(TerminalCondition):
     """
     A condition that will terminate an episode after some number of steps.
     """
+    goal_condition: GoalScoredCondition
 
     def __init__(self, redis):
         super().__init__()
         self.redis = redis
         seconds = self._update_seconds()
+        
+        self.goal_condition = GoalScoredCondition()
 
         print(seconds)
 
@@ -59,6 +44,8 @@ class ImmortalTerminalCondition(TerminalCondition):
         self.max_steps = round(seconds * 120 / self.tick_skip)
         self.steps = 0
 
+        self.goal_condition.reset(initial_state=initial_state)
+
     def is_terminal(self, current_state: GameState) -> bool:
 
         """
@@ -66,4 +53,5 @@ class ImmortalTerminalCondition(TerminalCondition):
         """
 
         self.steps += 1
-        return self.steps >= self.max_steps
+        return (self.steps >= self.max_steps) or self.goal_condition.is_terminal(current_state)
+        

@@ -91,16 +91,16 @@ class NectoStateSetter(StateSetter):
             self,
             # replay_array,
             *,
-            replay_prob=0.50,
+            replay_prob=0.30,
             random_prob=0.00,
-            kickoff_prob=0.34,
-            kickofflike_prob=0.16
+            kickoff_prob=0.44,
+            kickofflike_prob=0.26
     ):  # add goalie_prob/shooting/dribbling?
 
         super().__init__()
 
         self.setters = [
-            ReplaySetter("replayfile"),
+            ReplaySetter("replayfile1v1"),
             BetterRandom(),
             DefaultState(),
             KickoffLikeSetter(),
