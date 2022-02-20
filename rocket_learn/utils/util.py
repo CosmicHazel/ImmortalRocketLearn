@@ -29,7 +29,8 @@ def generate_episode(env: Gym, policies: List[Policy], evaluate=False) -> (List[
         reward = env._match._reward_fn
         game_condition = GameCondition(tick_skip=env._match._tick_skip,
                                        forfeit_spg_limit=10 * env._match._team_size)
-        env._match._terminal_conditions = [game_condition, GoalScoredCondition(), NoTouchTimeoutCondition(round(30 * 120 / env._match._tick_skip))]
+
+        env._match._terminal_conditions = [game_condition, NoTouchTimeoutCondition(round(30 * 120 / env._match._tick_skip))]
         env._match._state_setter = DefaultState()
         env._match._reward_fn = ConstantReward()  # noqa Save some cpu cycles
 
@@ -77,12 +78,7 @@ def generate_episode(env: Gym, policies: List[Policy], evaluate=False) -> (List[
 
             if done:
                 result += info["result"]
-                if not evaluate:
-                    break
-                elif game_condition.done:  # noqa
-                    break
-                else:
-                    observations, info = env.reset(return_info=True)
+                break
 
     if evaluate:
         env._match._terminal_conditions = terminals
