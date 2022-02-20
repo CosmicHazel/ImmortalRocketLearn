@@ -15,16 +15,18 @@ from training.obs import NectoObsTEST
 from training.parser import SetAction
 import os
 
+from training.test_reward import ImmortalTestReward
+
 WORKER_COUNTER = "worker-counter"
 
 config = dict(
-    seed=1234,
-    actor_lr=3e-4,
-    critic_lr=3e-4,
-    n_steps=50_000,
-    batch_size=5_000,
-    minibatch_size=2_500,
-    epochs=30,
+    seed=123,
+    actor_lr=1e-5,
+    critic_lr=1e-5,
+    n_steps=15_000,
+    batch_size=1_500,
+    minibatch_size=750,
+    epochs=20,
     gamma=0.995,
     iterations_per_save=5
 )
@@ -48,8 +50,8 @@ if __name__ == "__main__":
     from rocket_learn.ppo import PPO
 
 
-    #run_id = None
-    run_id = "ckrdy4z9"
+    run_id = None
+    #run_id = "amixi1oi"
 
     _, ip, password = sys.argv
     wandb.login(key=os.environ["WANDB_KEY"])
@@ -59,7 +61,7 @@ if __name__ == "__main__":
     redis = Redis(host=ip, password=password)
     redis.delete(WORKER_COUNTER)  # Reset to 0
 
-    rollout_gen = RedisRolloutGenerator(redis, ExpandAdvancedObs, lambda: ImmortalReward(redis, silent=True), SetAction,
+    rollout_gen = RedisRolloutGenerator(redis, ExpandAdvancedObs, lambda: ImmortalTestReward(redis, silent=True), SetAction,
                                         save_every=logger.config.iterations_per_save,
                                         logger=logger, clear=run_id is None)
 
@@ -77,8 +79,8 @@ if __name__ == "__main__":
     )
 
     #if run_id is not None:
-    alg.load(get_latest_checkpoint())
-    #alg.load("ppos/rocket-learn_1645147603.701768/rocket-learn_9580/checkpoint.pt")
+    #alg.load(get_latest_checkpoint())
+    #alg.load("ppos/Immortal1v1_1645339021.8435597/Immortal1v1_640/checkpoint.pt")
     # alg.agent.optimizer.param_groups[0]["lr"] = logger.config.actor_lr
     # alg.agent.optimizer.param_groups[1]["lr"] = logger.config.critic_lr
 

@@ -6,6 +6,8 @@ from redis import Redis
 from rlgym.envs import Match
 from rlgym.utils.obs_builders import AdvancedObs
 from rlgym.utils.reward_functions.common_rewards import VelocityReward, LiuDistancePlayerToBallReward
+from rlgym.utils.state_setters import DefaultState
+from rlgym.utils.terminal_conditions.common_conditions import TimeoutCondition
 from rlgym_tools.extra_state_setters.augment_setter import AugmentSetter
 
 from rocket_learn.rollout_generator.redis_rollout_generator import RedisRolloutWorker
@@ -20,6 +22,9 @@ from rocket_learn.utils.util import ExpandAdvancedObs
 
 
 #def get_match(r, force_match_size, replay_arrays, game_speed=100):
+from training.test_reward import ImmortalTestReward
+
+
 def get_match(r, force_match_size, redis, game_speed=100):
     order = (1, 2, 3, 1, 1, 2, 1, 1, 3, 2, 1)  # Close as possible number of agents
     # order = (1, 1, 2, 1, 1, 2, 3, 1, 1, 2, 3)  # Close as possible with 1s >= 2s >= 3s
@@ -30,11 +35,12 @@ def get_match(r, force_match_size, redis, game_speed=100):
 
     return Match(
 
-        reward_function=ImmortalReward(redis),
-        terminal_conditions=ImmortalTerminalCondition(redis),
+        reward_function=ImmortalTestReward(redis),
+        terminal_conditions=TimeoutCondition(75),
         obs_builder=ExpandAdvancedObs(),
         action_parser=SetAction(),
-        state_setter=AugmentSetter(ImmortalStateSetter()),
+        #state_setter=AugmentSetter(ImmortalStateSetter()),
+        state_setter=DefaultState(),
         self_play=True,
         team_size=team_size,
         game_speed=game_speed,
