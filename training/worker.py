@@ -68,7 +68,7 @@ def make_worker(host, name, password, limit_threads=True, send_gamestates=False,
                               current_version_prob=current_prob,
                               evaluation_prob=eval_prob,
                               send_gamestates=send_gamestates,
-                              display_only=is_streamer)
+                              display_only=False)
 
 
 def main():
