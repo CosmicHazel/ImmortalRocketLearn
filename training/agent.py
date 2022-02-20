@@ -1,10 +1,11 @@
 import torch
 from earl_pytorch import EARLPerceiver, ControlsPredictorDiscrete
 from torch import nn
-from torch.nn import Linear, ReLU
+from torch.nn import Linear, ReLU,Sequential
 
 from rocket_learn.agent.actor_critic_agent import ActorCriticAgent
 from rocket_learn.agent.discrete_policy import DiscretePolicy
+from rocket_learn.utils.util import SplitLayer
 
 
 class Necto(nn.Module):  # Wraps earl + an output and takes only a single input
@@ -23,17 +24,47 @@ class Necto(nn.Module):  # Wraps earl + an output and takes only a single input
 
 
 def get_critic():
-    return Necto(EARLPerceiver(128, 1, 4, 1, query_features=32, key_value_features=24),
-                 Linear(128, 1))
+    return Sequential(
+        Linear(107, 256),
+        ReLU(),
+        Linear(256, 256),
+        ReLU(),
+        Linear(256, 256),
+        ReLU(),
+        Linear(256, 256),
+        ReLU(),
+        Linear(256, 256),
+        ReLU(),
+        Linear(256, 1)
+    )
+    # return Necto(EARLPerceiver(128, 1, 4, 1, query_features=32, key_value_features=24),
+    #              Linear(128, 1))
 
 
 def get_actor():
-    #split = (3, 3, 2, 2, 2)
+    split = (3, 3, 3, 2, 2, 2)
     #split = (90,)
-    split = (228,)
+    #split = (228,)
     #split = (3, 3, 3, 3, 3, 2, 2, 2)
-    return DiscretePolicy(Necto(EARLPerceiver(128, 1, 4, 1, query_features=32, key_value_features=24),
-                                ControlsPredictorDiscrete(128, splits=split)), split)
+    #return DiscretePolicy(Necto(EARLPerceiver(128, 1, 4, 1, query_features=32, key_value_features=24),
+     #                          ControlsPredictorDiscrete(128, splits=split)), split)
+
+    actor = DiscretePolicy(Sequential(
+        Linear(107, 256),
+        ReLU(),
+        Linear(256, 256),
+        ReLU(),
+        Linear(256, 256),
+        ReLU(),
+        Linear(256, 256),
+        ReLU(),
+        Linear(256, 256),
+        ReLU(),
+        Linear(256, 15),  # 21),
+        SplitLayer(splits=split)
+    ))
+
+    return actor
 
 
 def get_agent(actor_lr, critic_lr=None):

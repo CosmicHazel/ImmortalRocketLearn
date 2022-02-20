@@ -19,15 +19,18 @@ def generate_episode(env: Gym, policies: List[Policy], evaluate=False) -> (List[
     """
     create experience buffer data by interacting with the environment(s)
     """
+    terminals = None
+    state_setter = None
+    reward = None
     if evaluate:  # Change setup temporarily to play a normal game (approximately)
         from rlgym_tools.extra_terminals.game_condition import GameCondition  # tools is an optional dependency
-        state_setter = env._match._state_setter  # noqa
-        terminals = env._match._terminal_conditions  # noqa
-        reward = env._match._reward_fn  # noqa
+        state_setter = env._match._state_setter
+        terminals = env._match._terminal_conditions
+        reward = env._match._reward_fn
         game_condition = GameCondition(tick_skip=env._match._tick_skip,
-                                       forfeit_spg_limit=10 * env._match._team_size)  # noqa
-        env._match._terminal_conditions = [game_condition, GoalScoredCondition(), NoTouchTimeoutCondition(round(30 * 120 / env._match._tick_skip))]  # noqa
-        env._match._state_setter = DefaultState()  # noqa
+                                       forfeit_spg_limit=10 * env._match._team_size)
+        env._match._terminal_conditions = [game_condition, GoalScoredCondition(), NoTouchTimeoutCondition(round(30 * 120 / env._match._tick_skip))]
+        env._match._state_setter = DefaultState()
         env._match._reward_fn = ConstantReward()  # noqa Save some cpu cycles
 
     observations, info = env.reset(return_info=True)
@@ -82,9 +85,9 @@ def generate_episode(env: Gym, policies: List[Policy], evaluate=False) -> (List[
                     observations, info = env.reset(return_info=True)
 
     if evaluate:
-        env._match._terminal_conditions = terminals  # noqa
-        env._match._state_setter = state_setter  # noqa
-        env._match._reward_fn = reward  # noqa
+        env._match._terminal_conditions = terminals
+        env._match._state_setter = state_setter
+        env._match._reward_fn = reward
         return result
 
     return rollouts, result

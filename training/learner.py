@@ -4,22 +4,23 @@ import sys
 import torch
 import wandb
 from redis import Redis
+from rlgym.utils.obs_builders import AdvancedObs
 from rlgym.utils.reward_functions.common_rewards import LiuDistancePlayerToBallReward
 
 from rocket_learn.rollout_generator.redis_rollout_generator import RedisRolloutGenerator
+from rocket_learn.utils.util import ExpandAdvancedObs
 from training.agent import get_agent
 from training.immortalreward import ImmortalReward
 from training.obs import NectoObsTEST
 from training.parser import SetAction
-from training.reward import NectoRewardFunction
 import os
 
 WORKER_COUNTER = "worker-counter"
 
 config = dict(
     seed=1234,
-    actor_lr=1e-6,
-    critic_lr=1e-6,
+    actor_lr=3e-4,
+    critic_lr=3e-4,
     n_steps=50_000,
     batch_size=5_000,
     minibatch_size=2_500,
@@ -47,18 +48,18 @@ if __name__ == "__main__":
     from rocket_learn.ppo import PPO
 
 
-    run_id = None
-    #run_id = "3f8f4ak6"
+    #run_id = None
+    run_id = "ckrdy4z9"
 
     _, ip, password = sys.argv
     wandb.login(key=os.environ["WANDB_KEY"])
-    logger = wandb.init(project="rocket-learn", entity=os.environ["entity"], id=run_id, config=config)
+    logger = wandb.init(project="Immortal1v1", entity=os.environ["entity"], id=run_id, config=config)
     torch.manual_seed(logger.config.seed)
 
     redis = Redis(host=ip, password=password)
     redis.delete(WORKER_COUNTER)  # Reset to 0
 
-    rollout_gen = RedisRolloutGenerator(redis, lambda: NectoObsTEST(6), ImmortalReward, SetAction,
+    rollout_gen = RedisRolloutGenerator(redis, ExpandAdvancedObs, lambda: ImmortalReward(redis, silent=True), SetAction,
                                         save_every=logger.config.iterations_per_save,
                                         logger=logger, clear=run_id is None)
 
@@ -76,8 +77,8 @@ if __name__ == "__main__":
     )
 
     #if run_id is not None:
-    #alg.load(get_latest_checkpoint())
-    alg.load("ppos/rocket-learn_1645147603.701768/rocket-learn_9580/checkpoint.pt")
+    alg.load(get_latest_checkpoint())
+    #alg.load("ppos/rocket-learn_1645147603.701768/rocket-learn_9580/checkpoint.pt")
     # alg.agent.optimizer.param_groups[0]["lr"] = logger.config.actor_lr
     # alg.agent.optimizer.param_groups[1]["lr"] = logger.config.critic_lr
 

@@ -4,6 +4,7 @@ from distutils.util import strtobool
 import torch
 from redis import Redis
 from rlgym.envs import Match
+from rlgym.utils.obs_builders import AdvancedObs
 from rlgym.utils.reward_functions.common_rewards import VelocityReward, LiuDistancePlayerToBallReward
 from rlgym_tools.extra_state_setters.augment_setter import AugmentSetter
 
@@ -12,8 +13,10 @@ from training.immortalreward import ImmortalReward
 from training.learner import WORKER_COUNTER
 from training.obs import NectoObsTEST
 from training.parser import SetAction
-from training.state import NectoStateSetter
+from training.state import ImmortalStateSetter
 from training.terminal import ImmortalTerminalCondition
+#from training.immortal_obs import ExpandAdvancedObs
+from rocket_learn.utils.util import ExpandAdvancedObs
 
 
 #def get_match(r, force_match_size, replay_arrays, game_speed=100):
@@ -27,21 +30,11 @@ def get_match(r, force_match_size, redis, game_speed=100):
 
     return Match(
 
-        # reward_function=CombinedReward.from_zipped(
-        #     (DiffReward(LiuDistancePlayerToBallReward()), 0.05),
-        #     (DiffReward(LiuDistanceBallToGoalReward()), 10),
-        #     (EventReward(touch=0.05, goal=10)),
-        # ),
-        # reward_function=NectoRewardFunction(goal_w=0, shot_w=0, save_w=0, demo_w=0, boost_w=0),
-        #reward_function=NectoRewardFunction(team_spirit=0, opponent_punish_w=0),
-        #reward_function=VelocityReward(negative=False),
         reward_function=ImmortalReward(redis),
         terminal_conditions=ImmortalTerminalCondition(redis),
-        obs_builder=NectoObsTEST(n_players=6),
+        obs_builder=ExpandAdvancedObs(),
         action_parser=SetAction(),
-        #action_parser=NectoAction(),
-        #state_setter=AugmentSetter(NectoStateSetter(replay_arrays[team_size - 1])),
-        state_setter=AugmentSetter(NectoStateSetter()),
+        state_setter=AugmentSetter(ImmortalStateSetter()),
         self_play=True,
         team_size=team_size,
         game_speed=game_speed,

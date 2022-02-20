@@ -86,7 +86,7 @@ class BetterRandom(StateSetter):  # Random state with some triangular distributi
 #         )
 
 
-class NectoStateSetter(StateSetter):
+class ImmortalStateSetter(StateSetter):
     def __init__(
             self,
             # replay_array,
