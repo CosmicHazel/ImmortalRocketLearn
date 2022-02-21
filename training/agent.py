@@ -1,11 +1,10 @@
 import torch
-from earl_pytorch import EARLPerceiver, ControlsPredictorDiscrete
+from earl_pytorch import ControlsPredictorDiscrete
 from torch import nn
-from torch.nn import Linear, ReLU,Sequential
+from torch.nn import Linear, Sequential, ReLU
 
 from rocket_learn.agent.actor_critic_agent import ActorCriticAgent
 from rocket_learn.agent.discrete_policy import DiscretePolicy
-from rocket_learn.utils.util import SplitLayer
 
 
 class Necto(nn.Module):  # Wraps earl + an output and takes only a single input
@@ -25,46 +24,28 @@ class Necto(nn.Module):  # Wraps earl + an output and takes only a single input
 
 def get_critic():
     return Sequential(
-        Linear(107, 256),
-        ReLU(),
-        Linear(256, 256),
-        ReLU(),
-        Linear(256, 256),
-        ReLU(),
-        Linear(256, 256),
-        ReLU(),
-        Linear(256, 256),
-        ReLU(),
-        Linear(256, 1)
-    )
-    # return Necto(EARLPerceiver(128, 1, 4, 1, query_features=32, key_value_features=24),
-    #              Linear(128, 1))
+        Linear(107, 256), ReLU(),
+        Linear(256, 256), ReLU(),
+        Linear(256, 256), ReLU(),
+        Linear(256, 256), ReLU(),
+        Linear(256, 1))
+
+
+# return Necto(EARLPerceiver(128, 1, 4, 1, query_features=32, key_value_features=24),
+#             Linear(128, 1))
 
 
 def get_actor():
     split = (3, 3, 3, 2, 2, 2)
-    #split = (90,)
-    #split = (228,)
-    #split = (3, 3, 3, 3, 3, 2, 2, 2)
-    #return DiscretePolicy(Necto(EARLPerceiver(128, 1, 4, 1, query_features=32, key_value_features=24),
-     #                          ControlsPredictorDiscrete(128, splits=split)), split)
+    return DiscretePolicy(Sequential(Linear(107, 256), ReLU(),
+                                     Linear(256, 256), ReLU(),
+                                     Linear(256, 256), ReLU(),
+                                     Linear(256, 256), ReLU(),
+                                     ControlsPredictorDiscrete(256, splits=split)))
 
-    actor = DiscretePolicy(Sequential(
-        Linear(107, 256),
-        ReLU(),
-        Linear(256, 256),
-        ReLU(),
-        Linear(256, 256),
-        ReLU(),
-        Linear(256, 256),
-        ReLU(),
-        Linear(256, 256),
-        ReLU(),
-        Linear(256, 15),  # 21),
-        SplitLayer(splits=split)
-    ))
-
-    return actor
+    # split = (90,)
+    # return DiscretePolicy(Necto(EARLPerceiver(128, 1, 4, 1, query_features=32, key_value_features=24),
+    #                            ControlsPredictorDiscrete(128, splits=split)), split)
 
 
 def get_agent(actor_lr, critic_lr=None):

@@ -2,12 +2,8 @@ from typing import Any
 
 import numpy as np
 from rlgym.utils import ObsBuilder
-from rlgym.utils.action_parsers import DefaultAction
 from rlgym.utils.common_values import BOOST_LOCATIONS, BLUE_TEAM, ORANGE_TEAM
 from rlgym.utils.gamestates import GameState, PlayerData
-
-from rocket_learn.utils.batched_obs_builder import BatchedObsBuilder
-from rocket_learn.utils.util import encode_gamestate
 
 
 class NectoObsBuilder(ObsBuilder):
@@ -136,208 +132,208 @@ BOOST, DEMO, ON_GROUND, HAS_FLIP = range(20, 24)
 ACTIONS = range(24, 32)
 
 
-class NectoObsTEST(BatchedObsBuilder):
-    _boost_locations = np.array(BOOST_LOCATIONS)
-    _invert = np.array([1] * 5 + [-1, -1, 1] * 5 + [1] * 4)
-    _norm = np.array([1.] * 5 + [2300] * 6 + [1] * 6 + [5.5] * 3 + [1] * 4)
-
-    def __init__(self, n_players=None, tick_skip=8):
-        super().__init__()
-        self.n_players = n_players
-        self.demo_timers = None
-        self.boost_timers = None
-        self.current_state = None
-        self.current_qkv = None
-        self.current_mask = None
-        self.tick_skip = tick_skip
-
-    def _reset(self, initial_state: GameState):
-        self.demo_timers = np.zeros(len(initial_state.players))
-        self.boost_timers = np.zeros(len(initial_state.boost_pads))
-        # self.current_state = initial_state
-
-    #     def encode_gamestate(state: GameState):
-    #     state_vals = [0, state.blue_score, state.orange_score]
-    #     state_vals += state.boost_pads.tolist()
-    #
-    #     for bd in (state.ball, state.inverted_ball):
-    #         state_vals += bd.position.tolist()
-    #         state_vals += bd.linear_velocity.tolist()
-    #         state_vals += bd.angular_velocity.tolist()
-    #
-    #     for p in state.players:
-    #         state_vals += [p.car_id, p.team_num]
-    #         for cd in (p.car_data, p.inverted_car_data):
-    #             state_vals += cd.position.tolist()
-    #             state_vals += cd.quaternion.tolist()
-    #             state_vals += cd.linear_velocity.tolist()
-    #             state_vals += cd.angular_velocity.tolist()
-    #         state_vals += [
-    #             p.match_goals,
-    #             p.match_saves,
-    #             p.match_shots,
-    #             p.match_demolishes,
-    #             p.boost_pickups,
-    #             p.is_demoed,
-    #             p.on_ground,
-    #             p.ball_touched,
-    #             p.has_flip,
-    #             p.boost_amount
-    #         ]
-    #     return state_vals
-
-    @staticmethod
-    def _quats_to_rot_mtx(quats: np.ndarray) -> np.ndarray:
-        # From rlgym.utils.math.quat_to_rot_mtx
-        w = -quats[:, 0]
-        x = -quats[:, 1]
-        y = -quats[:, 2]
-        z = -quats[:, 3]
-
-        theta = np.zeros((quats.shape[0], 3, 3))
-
-        norm = np.einsum("fq,fq->f", quats, quats)
-
-        sel = norm != 0
-
-        w = w[sel]
-        x = x[sel]
-        y = y[sel]
-        z = z[sel]
-
-        s = 1.0 / norm[sel]
-
-        # front direction
-        theta[sel, 0, 0] = 1.0 - 2.0 * s * (y * y + z * z)
-        theta[sel, 1, 0] = 2.0 * s * (x * y + z * w)
-        theta[sel, 2, 0] = 2.0 * s * (x * z - y * w)
-
-        # left direction
-        theta[sel, 0, 1] = 2.0 * s * (x * y - z * w)
-        theta[sel, 1, 1] = 1.0 - 2.0 * s * (x * x + z * z)
-        theta[sel, 2, 1] = 2.0 * s * (y * z + x * w)
-
-        # up direction
-        theta[sel, 0, 2] = 2.0 * s * (x * z + y * w)
-        theta[sel, 1, 2] = 2.0 * s * (y * z - x * w)
-        theta[sel, 2, 2] = 1.0 - 2.0 * s * (x * x + y * y)
-
-        return theta
-
-    def batched_build_obs(self, encoded_states: np.ndarray):
-        ball_start_index = 3 + GameState.BOOST_PADS_LENGTH
-        players_start_index = ball_start_index + GameState.BALL_STATE_LENGTH
-        player_length = GameState.PLAYER_INFO_LENGTH
-
-        n_players = (encoded_states.shape[1] - players_start_index) // player_length
-        lim_players = n_players if self.n_players is None else self.n_players
-        n_entities = lim_players + 1 + 34
-
-        # SELECTORS
-        sel_players = slice(0, lim_players)
-        sel_ball = sel_players.stop
-        sel_boosts = slice(sel_ball + 1, None)
-
-        # MAIN ARRAYS
-        q = np.zeros((n_players, encoded_states.shape[0], 1, 32))
-        kv = np.zeros((n_players, encoded_states.shape[0], n_entities, 24))  # Keys and values are (mostly) shared
-        m = np.zeros((n_players, encoded_states.shape[0], n_entities))  # Mask is shared
-
-        # BALL
-        kv[:, :, sel_ball, 3] = 1
-        kv[:, :, sel_ball, np.r_[POS, LIN_VEL, ANG_VEL]] = encoded_states[:, ball_start_index: ball_start_index + 9]
-
-        # BOOSTS
-        kv[:, :, sel_boosts, IS_BOOST] = 1
-        kv[:, :, sel_boosts, POS] = self._boost_locations
-        kv[:, :, sel_boosts, BOOST] = 0.12 + 0.88 * (self._boost_locations[:, 2] > 72)
-        kv[:, :, sel_boosts, DEMO] = encoded_states[:, 3:3 + 34]  # FIXME boost timer
-
-        # PLAYERS
-        teams = encoded_states[0, players_start_index + 1::player_length]
-        kv[:, :, :n_players, IS_MATE] = 1 - teams  # Default team is blue
-        kv[:, :, :n_players, IS_OPP] = teams
-        for i in range(n_players):
-            encoded_player = encoded_states[:,
-                             players_start_index + i * player_length: players_start_index + (i + 1) * player_length]
-
-            kv[i, :, i, IS_SELF] = 1
-            kv[:, :, i, POS] = encoded_player[:, 2: 5]  # TODO constants for these indices
-            kv[:, :, i, LIN_VEL] = encoded_player[:, 5: 8]
-            quats = encoded_player[:, 8: 12]
-            rot_mtx = self._quats_to_rot_mtx(quats)
-            kv[:, :, i, FW] = rot_mtx[:, :, 0]
-            kv[:, :, i, UP] = rot_mtx[:, :, 2]
-            kv[:, :, i, ANG_VEL] = encoded_player[:, 12: 15]
-            kv[:, :, i, BOOST] = encoded_player[:, 37]
-            kv[:, :, i, DEMO] = encoded_player[:, 33]  # FIXME demo timer
-            kv[:, :, i, ON_GROUND] = encoded_player[:, 34]
-            kv[:, :, i, HAS_FLIP] = encoded_player[:, 36]
-
-        kv[teams == 1] *= self._invert
-        kv[teams == 1][..., (IS_MATE, IS_OPP)] = kv[teams == 1][..., (IS_OPP, IS_MATE)]  # Swap teams
-
-        kv[:, :, :, 5:11] -= q[:, :, :, 5:11]
-
-        kv /= self._norm
-
-        q[np.arange(n_players), :, 0, :kv.shape[-1]] = kv[np.arange(n_players), :, np.arange(n_players), :]
-
-        # MASK
-        m[:, :, n_players: lim_players] = 1
-
-        return [(q[i], kv[i], m[i]) for i in range(n_players)]
-
-    def add_actions(self, obs: Any, previous_actions: np.ndarray, player_index=None):
-        if player_index is None:
-            for (q, kv, m), act in zip(obs, previous_actions):
-                q[:, 0, ACTIONS] = act
-        else:
-            q, kv, m = obs[player_index]
-            q[:, 0, ACTIONS] = previous_actions
-
-
-if __name__ == '__main__':
-    import rlgym
-
-    env = rlgym.make(use_injector=True, self_play=True, team_size=3, obs_builder=NectoObsTEST(n_players=6))
-
-    states = []
-    actions = [[np.zeros(8)] for _ in range(6)]
-    done = False
-    obs, info = env.reset(return_info=True)
-    obss = [[o] for o in obs]
-    states.append(info["state"])
-    while not done:
-        act = [env.action_space.sample() for _ in range(6)]
-        for a, arr in zip(act, actions):
-            arr.append(a)
-        obs, reward, done, info = env.step(act)
-        for os, o in zip(obss, obs):
-            os.append(o)
-        states.append(info["state"])
-
-    obs_b = NectoObsTEST(n_players=6)
-
-    enc_states = np.array([encode_gamestate(s) for s in states])
-    actions = np.array(actions)
-
-    # FIXME ensure obs corresponds to old obs
-    # FIXME ensure reconstructed obs is *exactly* the same as obs
-    # reconstructed_obs = obs_b.reset(GameState(enc_states[0].tolist()))
-    reconstructed_obs = obs_b.batched_build_obs(enc_states)
-    ap = DefaultAction()
-    obs_b.add_actions(reconstructed_obs, ap.parse_actions(actions.reshape(-1, 8), None).reshape(actions.shape))
-
-    formatted_obss = []
-    for player_obs in obss:
-        transposed = tuple(zip(*player_obs))
-        obs_tensor = tuple(np.vstack(t) for t in transposed)
-        formatted_obss.append(obs_tensor)
-
-    for o0, o1 in zip(formatted_obss, reconstructed_obs):
-        for arr0, arr1 in zip(o0, o1):
-            if not np.all(arr0 == arr1):
-                print("Error")
-
-    print("Hei")
+# class NectoObsTEST(BatchedObsBuilder):
+#     _boost_locations = np.array(BOOST_LOCATIONS)
+#     _invert = np.array([1] * 5 + [-1, -1, 1] * 5 + [1] * 4)
+#     _norm = np.array([1.] * 5 + [2300] * 6 + [1] * 6 + [5.5] * 3 + [1] * 4)
+#
+#     def __init__(self, n_players=None, tick_skip=8):
+#         super().__init__()
+#         self.n_players = n_players
+#         self.demo_timers = None
+#         self.boost_timers = None
+#         self.current_state = None
+#         self.current_qkv = None
+#         self.current_mask = None
+#         self.tick_skip = tick_skip
+#
+#     def _reset(self, initial_state: GameState):
+#         self.demo_timers = np.zeros(len(initial_state.players))
+#         self.boost_timers = np.zeros(len(initial_state.boost_pads))
+#         # self.current_state = initial_state
+#
+#     #     def encode_gamestate(state: GameState):
+#     #     state_vals = [0, state.blue_score, state.orange_score]
+#     #     state_vals += state.boost_pads.tolist()
+#     #
+#     #     for bd in (state.ball, state.inverted_ball):
+#     #         state_vals += bd.position.tolist()
+#     #         state_vals += bd.linear_velocity.tolist()
+#     #         state_vals += bd.angular_velocity.tolist()
+#     #
+#     #     for p in state.players:
+#     #         state_vals += [p.car_id, p.team_num]
+#     #         for cd in (p.car_data, p.inverted_car_data):
+#     #             state_vals += cd.position.tolist()
+#     #             state_vals += cd.quaternion.tolist()
+#     #             state_vals += cd.linear_velocity.tolist()
+#     #             state_vals += cd.angular_velocity.tolist()
+#     #         state_vals += [
+#     #             p.match_goals,
+#     #             p.match_saves,
+#     #             p.match_shots,
+#     #             p.match_demolishes,
+#     #             p.boost_pickups,
+#     #             p.is_demoed,
+#     #             p.on_ground,
+#     #             p.ball_touched,
+#     #             p.has_flip,
+#     #             p.boost_amount
+#     #         ]
+#     #     return state_vals
+#
+#     @staticmethod
+#     def _quats_to_rot_mtx(quats: np.ndarray) -> np.ndarray:
+#         # From rlgym.utils.math.quat_to_rot_mtx
+#         w = -quats[:, 0]
+#         x = -quats[:, 1]
+#         y = -quats[:, 2]
+#         z = -quats[:, 3]
+#
+#         theta = np.zeros((quats.shape[0], 3, 3))
+#
+#         norm = np.einsum("fq,fq->f", quats, quats)
+#
+#         sel = norm != 0
+#
+#         w = w[sel]
+#         x = x[sel]
+#         y = y[sel]
+#         z = z[sel]
+#
+#         s = 1.0 / norm[sel]
+#
+#         # front direction
+#         theta[sel, 0, 0] = 1.0 - 2.0 * s * (y * y + z * z)
+#         theta[sel, 1, 0] = 2.0 * s * (x * y + z * w)
+#         theta[sel, 2, 0] = 2.0 * s * (x * z - y * w)
+#
+#         # left direction
+#         theta[sel, 0, 1] = 2.0 * s * (x * y - z * w)
+#         theta[sel, 1, 1] = 1.0 - 2.0 * s * (x * x + z * z)
+#         theta[sel, 2, 1] = 2.0 * s * (y * z + x * w)
+#
+#         # up direction
+#         theta[sel, 0, 2] = 2.0 * s * (x * z + y * w)
+#         theta[sel, 1, 2] = 2.0 * s * (y * z - x * w)
+#         theta[sel, 2, 2] = 1.0 - 2.0 * s * (x * x + y * y)
+#
+#         return theta
+#
+#     def batched_build_obs(self, encoded_states: np.ndarray):
+#         ball_start_index = 3 + GameState.BOOST_PADS_LENGTH
+#         players_start_index = ball_start_index + GameState.BALL_STATE_LENGTH
+#         player_length = GameState.PLAYER_INFO_LENGTH
+#
+#         n_players = (encoded_states.shape[1] - players_start_index) // player_length
+#         lim_players = n_players if self.n_players is None else self.n_players
+#         n_entities = lim_players + 1 + 34
+#
+#         # SELECTORS
+#         sel_players = slice(0, lim_players)
+#         sel_ball = sel_players.stop
+#         sel_boosts = slice(sel_ball + 1, None)
+#
+#         # MAIN ARRAYS
+#         q = np.zeros((n_players, encoded_states.shape[0], 1, 32))
+#         kv = np.zeros((n_players, encoded_states.shape[0], n_entities, 24))  # Keys and values are (mostly) shared
+#         m = np.zeros((n_players, encoded_states.shape[0], n_entities))  # Mask is shared
+#
+#         # BALL
+#         kv[:, :, sel_ball, 3] = 1
+#         kv[:, :, sel_ball, np.r_[POS, LIN_VEL, ANG_VEL]] = encoded_states[:, ball_start_index: ball_start_index + 9]
+#
+#         # BOOSTS
+#         kv[:, :, sel_boosts, IS_BOOST] = 1
+#         kv[:, :, sel_boosts, POS] = self._boost_locations
+#         kv[:, :, sel_boosts, BOOST] = 0.12 + 0.88 * (self._boost_locations[:, 2] > 72)
+#         kv[:, :, sel_boosts, DEMO] = encoded_states[:, 3:3 + 34]  # FIXME boost timer
+#
+#         # PLAYERS
+#         teams = encoded_states[0, players_start_index + 1::player_length]
+#         kv[:, :, :n_players, IS_MATE] = 1 - teams  # Default team is blue
+#         kv[:, :, :n_players, IS_OPP] = teams
+#         for i in range(n_players):
+#             encoded_player = encoded_states[:,
+#                              players_start_index + i * player_length: players_start_index + (i + 1) * player_length]
+#
+#             kv[i, :, i, IS_SELF] = 1
+#             kv[:, :, i, POS] = encoded_player[:, 2: 5]  # TODO constants for these indices
+#             kv[:, :, i, LIN_VEL] = encoded_player[:, 5: 8]
+#             quats = encoded_player[:, 8: 12]
+#             rot_mtx = self._quats_to_rot_mtx(quats)
+#             kv[:, :, i, FW] = rot_mtx[:, :, 0]
+#             kv[:, :, i, UP] = rot_mtx[:, :, 2]
+#             kv[:, :, i, ANG_VEL] = encoded_player[:, 12: 15]
+#             kv[:, :, i, BOOST] = encoded_player[:, 37]
+#             kv[:, :, i, DEMO] = encoded_player[:, 33]  # FIXME demo timer
+#             kv[:, :, i, ON_GROUND] = encoded_player[:, 34]
+#             kv[:, :, i, HAS_FLIP] = encoded_player[:, 36]
+#
+#         kv[teams == 1] *= self._invert
+#         kv[teams == 1][..., (IS_MATE, IS_OPP)] = kv[teams == 1][..., (IS_OPP, IS_MATE)]  # Swap teams
+#
+#         kv[:, :, :, 5:11] -= q[:, :, :, 5:11]
+#
+#         kv /= self._norm
+#
+#         q[np.arange(n_players), :, 0, :kv.shape[-1]] = kv[np.arange(n_players), :, np.arange(n_players), :]
+#
+#         # MASK
+#         m[:, :, n_players: lim_players] = 1
+#
+#         return [(q[i], kv[i], m[i]) for i in range(n_players)]
+#
+#     def add_actions(self, obs: Any, previous_actions: np.ndarray, player_index=None):
+#         if player_index is None:
+#             for (q, kv, m), act in zip(obs, previous_actions):
+#                 q[:, 0, ACTIONS] = act
+#         else:
+#             q, kv, m = obs[player_index]
+#             q[:, 0, ACTIONS] = previous_actions
+#
+#
+# if __name__ == '__main__':
+#     import rlgym
+#
+#     env = rlgym.make(use_injector=True, self_play=True, team_size=3, obs_builder=NectoObsTEST(n_players=6))
+#
+#     states = []
+#     actions = [[np.zeros(8)] for _ in range(6)]
+#     done = False
+#     obs, info = env.reset(return_info=True)
+#     obss = [[o] for o in obs]
+#     states.append(info["state"])
+#     while not done:
+#         act = [env.action_space.sample() for _ in range(6)]
+#         for a, arr in zip(act, actions):
+#             arr.append(a)
+#         obs, reward, done, info = env.step(act)
+#         for os, o in zip(obss, obs):
+#             os.append(o)
+#         states.append(info["state"])
+#
+#     obs_b = NectoObsTEST(n_players=6)
+#
+#     enc_states = np.array([encode_gamestate(s) for s in states])
+#     actions = np.array(actions)
+#
+#     # FIXME ensure obs corresponds to old obs
+#     # FIXME ensure reconstructed obs is *exactly* the same as obs
+#     # reconstructed_obs = obs_b.reset(GameState(enc_states[0].tolist()))
+#     reconstructed_obs = obs_b.batched_build_obs(enc_states)
+#     ap = DefaultAction()
+#     obs_b.add_actions(reconstructed_obs, ap.parse_actions(actions.reshape(-1, 8), None).reshape(actions.shape))
+#
+#     formatted_obss = []
+#     for player_obs in obss:
+#         transposed = tuple(zip(*player_obs))
+#         obs_tensor = tuple(np.vstack(t) for t in transposed)
+#         formatted_obss.append(obs_tensor)
+#
+#     for o0, o1 in zip(formatted_obss, reconstructed_obs):
+#         for arr0, arr1 in zip(o0, o1):
+#             if not np.all(arr0 == arr1):
+#                 print("Error")
+#
+#     print("Hei")
