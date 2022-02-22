@@ -5,7 +5,8 @@ import torch
 import wandb
 from redis import Redis
 from rlgym.utils.reward_functions import CombinedReward
-from rlgym.utils.reward_functions.common_rewards import VelocityPlayerToBallReward, VelocityReward
+from rlgym.utils.reward_functions.common_rewards import VelocityPlayerToBallReward, VelocityReward, EventReward, \
+    VelocityBallToGoalReward
 
 from rocket_learn.rollout_generator.redis_rollout_generator import RedisRolloutGenerator
 from rocket_learn.utils.util import ExpandAdvancedObs
@@ -15,21 +16,21 @@ from training.parser import ImmortalAction
 WORKER_COUNTER = "worker-counter"
 
 config = dict(
-    seed=123,
-    actor_lr=1e-5,
-    critic_lr=1e-5,
+    seed=125,
+    actor_lr=5e-5,
+    critic_lr=5e-5,
     n_steps=150_000,
     batch_size=50_000,
     minibatch_size=25_000,
-    epochs=20,
+    epochs=30,
     gamma=0.995,
-    iterations_per_save=10
+    iterations_per_save=5
 )
 
 if __name__ == "__main__":
     from rocket_learn.ppo import PPO
 
-    run_id = "dyemrdlu"
+    run_id = "2vu2g6ad"
 
     _, ip, password = sys.argv
     wandb.login(key=os.environ["WANDB_KEY"])
@@ -40,10 +41,10 @@ if __name__ == "__main__":
     redis.delete(WORKER_COUNTER)  # Reset to 0
 
     rollout_gen = RedisRolloutGenerator(redis, ExpandAdvancedObs,
-                                        lambda: CombinedReward.from_zipped((VelocityPlayerToBallReward(), 1.0),
+                                        lambda: CombinedReward.from_zipped((VelocityPlayerToBallReward(), 1.0),(VelocityBallToGoalReward(), 2.0),EventReward(touch=100,team_goal=1000,concede=-1000),
                                                                            ), ImmortalAction,
                                         save_every=logger.config.iterations_per_save,
-                                        logger=logger, clear=run_id is None)
+                                        logger=logger, clear=False)
 
     agent = get_agent(actor_lr=logger.config.actor_lr, critic_lr=logger.config.critic_lr)
 
@@ -74,7 +75,7 @@ if __name__ == "__main__":
         return full_dir
 
     #if run_id is not None:
-    #alg.load("ppos/Immortal_1645428859.310328/Immortal_1860/checkpoint.pt")
+    #alg.load("ppos/Immortal_1645474965.624841/Immortal_140/checkpoint.pt")
     alg.load(get_latest_checkpoint())
         # alg.agent.optimizer.param_groups[0]["lr"] = logger.config.actor_lr
         # alg.agent.optimizer.param_groups[1]["lr"] = logger.config.critic_lr

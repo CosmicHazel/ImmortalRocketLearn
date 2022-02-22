@@ -5,7 +5,8 @@ import torch
 from redis import Redis
 from rlgym.envs import Match
 from rlgym.utils.reward_functions import CombinedReward
-from rlgym.utils.reward_functions.common_rewards import VelocityPlayerToBallReward, VelocityReward
+from rlgym.utils.reward_functions.common_rewards import VelocityPlayerToBallReward, \
+    VelocityBallToGoalReward, EventReward
 from rlgym.utils.state_setters import DefaultState
 from rlgym.utils.terminal_conditions.common_conditions import TimeoutCondition
 
@@ -16,18 +17,13 @@ from training.parser import ImmortalAction
 
 
 def get_match(r, force_match_size, game_speed=100):
-    order = (1, 2, 3, 1, 1, 2, 1, 1, 3, 2, 1)  # Close as possible number of agents
-    # order = (1, 1, 2, 1, 1, 2, 3, 1, 1, 2, 3)  # Close as possible with 1s >= 2s >= 3s
-    # order = (1,)
-    team_size = order[r % len(order)]
-    if force_match_size:
-        team_size = force_match_size
+    team_size = force_match_size
 
     return Match(
-        reward_function=CombinedReward.from_zipped(
-            (VelocityPlayerToBallReward(), 1.0),
-        ),
-        # reward_function=NectoRewardFunction(goal_w=0, shot_w=0, save_w=0, demo_w=0, boost_w=0),
+        reward_function=CombinedReward.from_zipped((VelocityPlayerToBallReward(), 1.0),
+                                                   (VelocityBallToGoalReward(), 2.0),
+                                                   EventReward(touch=100, team_goal=1000, concede=-1000),
+                                                   ),
         terminal_conditions=TimeoutCondition(75),
         obs_builder=ExpandAdvancedObs(),
         action_parser=ImmortalAction(),
@@ -45,7 +41,7 @@ def make_worker(host, name, password, limit_threads=True, send_gamestates=False,
     r = Redis(host=host, password=password)
     w = r.incr(WORKER_COUNTER) - 1
 
-    current_prob = .8
+    current_prob = .95
     eval_prob = .00
     game_speed = 100
     if is_streamer:
@@ -53,43 +49,23 @@ def make_worker(host, name, password, limit_threads=True, send_gamestates=False,
         eval_prob = 0
         game_speed = 1
 
-#    replay_arrays = _unserialize(r.get("replay-arrays"))
+    #    replay_arrays = _unserialize(r.get("replay-arrays"))
 
     return RedisRolloutWorker(r, name,
-                              match=get_match(w, force_match_size, game_speed=game_speed), #replay_arrays=replay_arrays),
+                              match=get_match(w, force_match_size, game_speed=game_speed),
+                              # replay_arrays=replay_arrays),
                               current_version_prob=current_prob,
-                              #evaluation_prob=eval_prob,
+                              evaluation_prob=eval_prob,
                               send_gamestates=send_gamestates,
                               display_only=is_streamer)
 
 
 def main():
-    # if not torch.cuda.is_available():
-    #     sys.exit("Unable to train on your hardware, perhaps due to out-dated drivers or hardware age.")
-
     assert len(sys.argv) >= 4  # last is optional to force match size
 
     force_match_size = 1
 
     print(len(sys.argv))
-
-    # import argparse
-    #
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("-n", "--name", required=True)
-    # parser.add_argument("--ip", required=True)
-    # parser.add_argument("-p", "--password", required=True)
-    # parser.add_argument("-c", "--compress", default=True)
-    # parser.add_argument("-d", "--display-only", default=True)
-    # parser.add_argument("-g", "--gamemode", default=None)
-    # parser.add_argument("-p", "--password", required=True)
-    # parser.add_argument("-p", "--password", required=True)
-    #
-    # compress = bool(strtobool(sys.argv[4])) if len(sys.argv) >= 5 else True
-    # display_only = bool(strtobool(sys.argv[5])) if len(sys.argv) >= 6 else False
-    # force_match_size = int(sys.argv[6]) if len(sys.argv) >= 7 else None
-    # current_version_prob = float(sys.argv[7]) if len(sys.argv) >= 8 else 0.8
-    # evaluation_prob = float(sys.argv[8]) if len(sys.argv) >= 9 else 0.01
 
     if len(sys.argv) == 5:
         _, name, ip, password, compress = sys.argv

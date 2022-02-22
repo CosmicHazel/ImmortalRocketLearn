@@ -8,21 +8,22 @@ import torch
 import torch.jit
 import wandb
 from redis import Redis
+from rlgym.utils.action_parsers import DiscreteAction
+from rlgym.utils.reward_functions import CombinedReward
+from rlgym.utils.reward_functions.common_rewards import VelocityPlayerToBallReward, VelocityReward
+from torch.nn import Linear, Sequential
+
+from rocket_learn.utils.util import SplitLayer
 from rlgym.envs import Match
 from rlgym.utils.gamestates import PlayerData, GameState
 from rlgym.utils.obs_builders import AdvancedObs
-from rlgym.utils.reward_functions import CombinedReward
-from rlgym.utils.reward_functions.common_rewards import VelocityPlayerToBallReward, VelocityReward
 from rlgym.utils.state_setters import DefaultState
-from rlgym.utils.terminal_conditions.common_conditions import TimeoutCondition
-from torch.nn import Linear, Sequential
-
+from rlgym.utils.terminal_conditions.common_conditions import NoTouchTimeoutCondition, GoalScoredCondition, \
+    TimeoutCondition
 from rocket_learn.agent.actor_critic_agent import ActorCriticAgent
 from rocket_learn.agent.discrete_policy import DiscretePolicy
 from rocket_learn.ppo import PPO
 from rocket_learn.rollout_generator.redis_rollout_generator import RedisRolloutGenerator, RedisRolloutWorker
-from rocket_learn.utils.util import SplitLayer
-from training.parser import NectoActionTEST
 
 
 class ExpandAdvancedObs(AdvancedObs):
@@ -36,11 +37,12 @@ def get_match():
         reward_function=CombinedReward.from_zipped((VelocityPlayerToBallReward(), 0.5),
                                                    (VelocityReward(), 0.5)),
         terminal_conditions=TimeoutCondition(75),
-        action_parser=NectoActionTEST(),
+        action_parser=DiscreteAction(),
         obs_builder=ExpandAdvancedObs(),
         state_setter=DefaultState(),
         self_play=True,
-        team_size=1
+        team_size=1,
+        game_speed=1
     )
 
 
@@ -56,25 +58,14 @@ if __name__ == "__main__":
     logger = wandb.init(project="rocket-learn", entity="cosmicvivacity")
 
     redis = Redis(password="rocket-learn")
-    rollout_gen = RedisRolloutGenerator(redis, save_every=10, logger=logger, act_parse_factory=NectoActionTEST,
+    rollout_gen = RedisRolloutGenerator(redis, save_every=10, logger=logger, act_parse_factory=DiscreteAction,
                                         obs_build_factory=ExpandAdvancedObs,
                                         rew_func_factory=lambda: CombinedReward.from_zipped(
                                             (VelocityPlayerToBallReward(), 0.5),
                                             (VelocityReward(), 0.5)))
 
-    # jit models can't be pickled
-    # ex_inp = (
-    #     (torch.zeros((10, 1, 32)), torch.zeros((10, 1 + 6 + 34, 24)), torch.zeros((10, 1 + 6 + 34))),)  # q, kv, mask
-    # critic = torch.jit.trace(
-    #     func=Necto(EARLPerceiver(128, query_features=32, key_value_features=24), Linear(128, 1)),
-    #     example_inputs=ex_inp
-    # )
-    # actor = torch.jit.trace(
-    #     func=Necto(EARLPerceiver(256, query_features=32, key_value_features=24), ControlsPredictorDiscrete(256)),
-    #     example_inputs=ex_inp
-    # )
-    critic = Sequential(Linear(107, 128), Linear(128, 90), Linear(90, 90), Linear(90, 1))
-    actor = DiscretePolicy(Sequential(Linear(107, 128), Linear(128, 90), Linear(90, 90), Linear(90, 90), SplitLayer(splits=(90,))))
+    critic = Sequential(Linear(107, 128), Linear(128, 64), Linear(64, 32), Linear(32, 1))
+    actor = DiscretePolicy(Sequential(Linear(107, 128), Linear(128, 64), Linear(64, 32), Linear(32, 21), SplitLayer()))
 
     lr = 1e-5
     optim = torch.optim.Adam([
