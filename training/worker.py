@@ -6,28 +6,34 @@ from redis import Redis
 from rlgym.envs import Match
 from rlgym.utils.reward_functions import CombinedReward
 from rlgym.utils.reward_functions.common_rewards import VelocityPlayerToBallReward, \
-    VelocityBallToGoalReward, EventReward
+    VelocityBallToGoalReward, EventReward, VelocityReward
 from rlgym.utils.state_setters import DefaultState
-from rlgym.utils.terminal_conditions.common_conditions import TimeoutCondition
+from rlgym.utils.terminal_conditions.common_conditions import TimeoutCondition, GoalScoredCondition, \
+    NoTouchTimeoutCondition
 
 from rocket_learn.rollout_generator.redis_rollout_generator import RedisRolloutWorker
 from rocket_learn.utils.util import ExpandAdvancedObs
 from training.learner import WORKER_COUNTER
 from training.parser import ImmortalAction
+from training.state import ImmortalStateSetter
 
 
 def get_match(r, force_match_size, game_speed=100):
     team_size = force_match_size
+    frame_skip = 8  # Number of ticks to repeat an action
+    fps = 120 / frame_skip
 
     return Match(
-        reward_function=CombinedReward.from_zipped((VelocityPlayerToBallReward(), 1.0),
+        reward_function=CombinedReward.from_zipped((VelocityPlayerToBallReward(), 0.4), (VelocityReward(), 0.6),
                                                    (VelocityBallToGoalReward(), 2.0),
-                                                   EventReward(touch=100, team_goal=1000, concede=-1000),
+                                                   EventReward(team_goal=100, save=30, demo=20,
+                                                               concede=-100),
                                                    ),
-        terminal_conditions=TimeoutCondition(75),
+        terminal_conditions=[TimeoutCondition(round(fps * 300)), NoTouchTimeoutCondition(round(fps * 20)),
+                             GoalScoredCondition()],
         obs_builder=ExpandAdvancedObs(),
         action_parser=ImmortalAction(),
-        state_setter=DefaultState(),
+        state_setter=ImmortalStateSetter(),
         self_play=True,
         team_size=team_size,
         game_speed=game_speed,
@@ -41,8 +47,8 @@ def make_worker(host, name, password, limit_threads=True, send_gamestates=False,
     r = Redis(host=host, password=password)
     w = r.incr(WORKER_COUNTER) - 1
 
-    current_prob = .95
-    eval_prob = .00
+    current_prob = .8
+    eval_prob = 0.01
     game_speed = 100
     if is_streamer:
         current_prob = 1
@@ -57,7 +63,7 @@ def make_worker(host, name, password, limit_threads=True, send_gamestates=False,
                               current_version_prob=current_prob,
                               evaluation_prob=eval_prob,
                               send_gamestates=send_gamestates,
-                              display_only=is_streamer)
+                              display_only=False)
 
 
 def main():
