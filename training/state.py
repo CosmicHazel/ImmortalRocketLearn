@@ -91,16 +91,16 @@ class ImmortalStateSetter(StateSetter):
             self,
             # replay_array,
             *,
-            replay_prob=0.50,
-            random_prob=0.15,
+            replay_prob=0.70,
+            random_prob=0.07,
             kickoff_prob=0.20,
-            kickofflike_prob=0.15
+            kickofflike_prob=0.03
     ):  # add goalie_prob/shooting/dribbling?
 
         super().__init__()
 
         self.setters = [
-            ReplaySetter("replayfile1v1"),
+            ReplaySetter("platdiachampgcssl_1v1.npy"),
             BetterRandom(),
             DefaultState(),
             KickoffLikeSetter(),

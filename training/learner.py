@@ -28,7 +28,6 @@ def get_latest_checkpoint():
                    os.path.isdir(os.path.join(latest_subdir, d))]
     latest_subdir = (max(all_subdirs, key=os.path.getmtime))
     full_dir = os.path.join(latest_subdir, 'checkpoint.pt')
-    print(full_dir)
 
     return full_dir
 
@@ -37,22 +36,35 @@ if __name__ == "__main__":
     from rocket_learn.ppo import PPO
 
     frame_skip = 8  # Number of ticks to repeat an action
-    half_life_seconds = 5  # Easier to conceptualize, after this many seconds the reward discount is 0.5
-    run_id = "39riebfz"
-    clear = False
-    file = get_latest_checkpoint()
-    #file = "ppos\Immortal_1645886051.467028\Immortal_65/checkpoint.pt"
+    half_life_seconds = 1  # Easier to conceptualize, after this many seconds the reward discount is 0.5
+
+    run_name = "Continue5e-5"
+    #run_id = "3hqi92gb"
+    run_id = None
+    #file = None
+    #file = get_latest_checkpoint()
+    file = "ppos\Immortal_1646008687.508684\Immortal_520\checkpoint.pt"
 
     fps = 120 / frame_skip
     gamma = np.exp(np.log(0.5) / (fps * half_life_seconds))
 
+    _, ip, password, clear = sys.argv
+    clear = clear.lower()
+
+    if clear == 'true':
+        print ('clearing DB')
+        clear = True
+    else:
+        print ('not clearing DB')
+        clear = False
+
     config = dict(
         seed=125,
-        actor_lr=3e-4,
-        critic_lr=3e-4,
-        n_steps=200_000,
-        batch_size=40_000,
-        minibatch_size=20_000,
+        actor_lr=5e-5,
+        critic_lr=5e-5,
+        n_steps=400_000,
+        batch_size=50_000,
+        minibatch_size=25_000,
         epochs=32,
         gamma=gamma,
         iterations_per_save=5
@@ -60,11 +72,12 @@ if __name__ == "__main__":
 
     print(gamma)
 
-    _, ip, password = sys.argv
+
     wandb.login(key=os.environ["WANDB_KEY"])
+
     logger = wandb.init(project="Immortal", entity="cosmicvivacity", id=run_id, config=config)
     torch.manual_seed(logger.config.seed)
-
+    logger.name = run_name
     redis = Redis(host=ip, password=password)
     redis.delete(WORKER_COUNTER)  # Reset to 0
 
@@ -108,7 +121,8 @@ if __name__ == "__main__":
 
 
     if file:
-        alg.load(file, continue_iterations=not clear)
+        print(f'loading from {file}')
+        alg.load(file, continue_iterations=True)
         # alg.load(get_latest_checkpoint())
         # alg.agent.optimizer.param_groups[0]["lr"] = logger.config.actor_lr
         # alg.agent.optimizer.param_groups[1]["lr"] = logger.config.critic_lr

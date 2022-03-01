@@ -29,7 +29,7 @@ def get_match(r, force_match_size, game_speed=100):
                                                    EventReward(team_goal=100, save=30, demo=20,
                                                                concede=-100),
                                                    ),
-        terminal_conditions=[TimeoutCondition(round(fps * 300)), NoTouchTimeoutCondition(round(fps * 20)),
+        terminal_conditions=[TimeoutCondition(round(fps * 30)), NoTouchTimeoutCondition(round(fps * 20)),
                              GoalScoredCondition()],
         obs_builder=ExpandAdvancedObs(),
         action_parser=ImmortalAction(),
