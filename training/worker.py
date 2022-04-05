@@ -26,7 +26,7 @@ def get_match(r, force_match_size, game_speed=100):
     return Match(
         reward_function=CombinedReward.from_zipped((VelocityPlayerToBallReward(), 0.4), (VelocityReward(), 0.6),
                                                    (VelocityBallToGoalReward(), 2.0),
-                                                   EventReward(team_goal=1000, save=500, demo=500,
+                                                   EventReward(team_goal=1200, save=200, demo=500,
                                                                concede=-1000),
                                                    ),
         terminal_conditions=[TimeoutCondition(round(fps * 30)), NoTouchTimeoutCondition(round(fps * 20)),
