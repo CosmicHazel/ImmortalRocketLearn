@@ -26,8 +26,8 @@ def get_match(r, force_match_size, game_speed=100):
     return Match(
         reward_function=CombinedReward.from_zipped((VelocityPlayerToBallReward(), 0.4), (VelocityReward(), 0.6),
                                                    (VelocityBallToGoalReward(), 2.0),
-                                                   EventReward(team_goal=100, save=30, demo=20,
-                                                               concede=-100),
+                                                   EventReward(team_goal=1000, save=500, demo=500,
+                                                               concede=-1000),
                                                    ),
         terminal_conditions=[TimeoutCondition(round(fps * 30)), NoTouchTimeoutCondition(round(fps * 20)),
                              GoalScoredCondition()],
@@ -48,7 +48,7 @@ def make_worker(host, name, password, limit_threads=True, send_gamestates=False,
     w = r.incr(WORKER_COUNTER) - 1
 
     current_prob = .8
-    eval_prob = 0.01
+    eval_prob = 0.00
     game_speed = 100
     if is_streamer:
         current_prob = 1
@@ -61,9 +61,11 @@ def make_worker(host, name, password, limit_threads=True, send_gamestates=False,
                               match=get_match(w, force_match_size, game_speed=game_speed),
                               # replay_arrays=replay_arrays),
                               current_version_prob=current_prob,
+                              #past_version_prob=1-current_prob,
                               evaluation_prob=eval_prob,
-                              send_gamestates=send_gamestates,
-                              display_only=False)
+                              send_gamestates=send_gamestates#,
+                              #display_only=False
+                              )
 
 
 def main():

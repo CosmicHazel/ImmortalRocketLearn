@@ -36,14 +36,14 @@ if __name__ == "__main__":
     from rocket_learn.ppo import PPO
 
     frame_skip = 8  # Number of ticks to repeat an action
-    half_life_seconds = 1  # Easier to conceptualize, after this many seconds the reward discount is 0.5
+    half_life_seconds = 15  # Easier to conceptualize, after this many seconds the reward discount is 0.5
 
-    run_name = "Continue5e-5"
-    #run_id = "3hqi92gb"
+    run_name = "512x5Test"
+    #run_id = "29suj5s9"
     run_id = None
-    #file = None
+    file = None
     #file = get_latest_checkpoint()
-    file = "ppos\Immortal_1646008687.508684\Immortal_520\checkpoint.pt"
+    #file = "ppos\Immortal_1646072781.0598092\Immortal_770\checkpoint.pt"
 
     fps = 120 / frame_skip
     gamma = np.exp(np.log(0.5) / (fps * half_life_seconds))
@@ -62,7 +62,7 @@ if __name__ == "__main__":
         seed=125,
         actor_lr=5e-5,
         critic_lr=5e-5,
-        n_steps=400_000,
+        n_steps=250_000,
         batch_size=50_000,
         minibatch_size=25_000,
         epochs=32,
@@ -71,7 +71,6 @@ if __name__ == "__main__":
     )
 
     print(gamma)
-
 
     wandb.login(key=os.environ["WANDB_KEY"])
 
@@ -82,14 +81,20 @@ if __name__ == "__main__":
     redis.delete(WORKER_COUNTER)  # Reset to 0
 
     rollout_gen = RedisRolloutGenerator(redis, ExpandAdvancedObs,
-                                        lambda: CombinedReward.from_zipped((VelocityPlayerToBallReward(), 0.4),
-                                                                           (VelocityReward(), 0.6),
-                                                                           (VelocityBallToGoalReward(), 2.0),
-                                                                           EventReward(team_goal=100, save=30, demo=20,
-                                                                                       concede=-100),
-                                                                           ), ImmortalAction,
+                                        lambda: CombinedReward.from_zipped(
+                                            (VelocityPlayerToBallReward(), 0.4),
+                                            (VelocityReward(), 0.6),
+                                            (VelocityBallToGoalReward(), 2.0),
+                                            EventReward(team_goal=1000,
+                                                        save=500,
+                                                        demo=500,
+                                                        concede=-1000),
+                                        ),
+                                        ImmortalAction,
                                         save_every=logger.config.iterations_per_save,
-                                        logger=logger, clear=clear)
+                                        logger=logger,
+                                        clear=clear
+                                        )
 
     agent = get_agent(actor_lr=logger.config.actor_lr, critic_lr=logger.config.critic_lr)
 

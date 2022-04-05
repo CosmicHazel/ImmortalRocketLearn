@@ -91,10 +91,10 @@ class ImmortalStateSetter(StateSetter):
             self,
             # replay_array,
             *,
-            replay_prob=0.70,
-            random_prob=0.07,
-            kickoff_prob=0.20,
-            kickofflike_prob=0.03
+            replay_prob=0.80,
+            random_prob=0.05,
+            kickoff_prob=0.15,
+            kickofflike_prob=0.00
     ):  # add goalie_prob/shooting/dribbling?
 
         super().__init__()

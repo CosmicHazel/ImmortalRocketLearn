@@ -1,10 +1,11 @@
 import torch
-from earl_pytorch import ControlsPredictorDiscrete
+#from earl_pytorch import ControlsPredictorDiscrete
 from torch import nn
 from torch.nn import Linear, Sequential, ReLU
 
 from rocket_learn.agent.actor_critic_agent import ActorCriticAgent
 from rocket_learn.agent.discrete_policy import DiscretePolicy
+from rocket_learn.utils.util import SplitLayer
 
 
 class Necto(nn.Module):  # Wraps earl + an output and takes only a single input
@@ -24,11 +25,11 @@ class Necto(nn.Module):  # Wraps earl + an output and takes only a single input
 
 def get_critic():
     return Sequential(
-        Linear(107, 256), ReLU(),
-        Linear(256, 256), ReLU(),
-        Linear(256, 256), ReLU(),
-        Linear(256, 256), ReLU(),
-        Linear(256, 1))
+        Linear(107, 512), ReLU(),
+        Linear(512, 512), ReLU(),
+        Linear(512, 512), ReLU(),
+        Linear(512, 512), ReLU(),
+        Linear(512, 1))
 
 
 # return Necto(EARLPerceiver(128, 1, 4, 1, query_features=32, key_value_features=24),
@@ -37,11 +38,12 @@ def get_critic():
 
 def get_actor():
     split = (3, 3, 3, 2, 2, 2)
-    return DiscretePolicy(Sequential(Linear(107, 256), ReLU(),
-                                     Linear(256, 256), ReLU(),
-                                     Linear(256, 256), ReLU(),
-                                     Linear(256, 256), ReLU(),
-                                     ControlsPredictorDiscrete(256, splits=split)))
+    return DiscretePolicy(Sequential(Linear(107, 512), ReLU(),
+                                     Linear(512, 512), ReLU(),
+                                     Linear(512, 512), ReLU(),
+                                     Linear(512, 512), ReLU(),
+                                     Linear(512, 15),
+                                     SplitLayer(splits=split)))
 
     # split = (90,)
     # return DiscretePolicy(Necto(EARLPerceiver(128, 1, 4, 1, query_features=32, key_value_features=24),
