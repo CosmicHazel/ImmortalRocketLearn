@@ -1,0 +1,12 @@
+numpy~=1.21.5
+--find-links https://download.pytorch.org/whl/cu113/torch_stable.html
+torch==.10.2+cu113
+rlgym
+redis~=4.1.4
+cloudpickle~=2.0.0
+gym~=0.22.0
+wandb
+numba~=0.55.1
+msgpack~=1.0.3
+plotly~=5.6.0
+trueskill~=0.4.5
