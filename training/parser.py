@@ -13,7 +13,7 @@ class ImmortalAction(DiscreteAction):
         return gym.spaces.MultiDiscrete([self._n_bins] * 3 + [2] * 3)
 
     def parse_actions(self, actions: Any, state: GameState) -> np.ndarray:
-        actions = actions.reshape((-1, 6))
+        #actions = actions.reshape((-1, 8))
         actions[:, 0] = actions[:, 0] / (self._n_bins // 2) - 1
         actions[:, 1] = actions[:, 1] / (self._n_bins // 2) - 1
         actions[:, 2] = actions[:, 2] / (self._n_bins // 2) - 1

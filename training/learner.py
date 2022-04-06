@@ -38,7 +38,7 @@ if __name__ == "__main__":
     frame_skip = 8  # Number of ticks to repeat an action
     half_life_seconds = 15  # Easier to conceptualize, after this many seconds the reward discount is 0.5
 
-    run_name = "512x5Test"
+    run_name = "512x5LeakyRelu"
     #run_id = "29suj5s9"
     run_id = None
     file = None
@@ -62,9 +62,9 @@ if __name__ == "__main__":
         seed=125,
         actor_lr=5e-5,
         critic_lr=5e-5,
-        n_steps=250_000,
-        batch_size=50_000,
-        minibatch_size=25_000,
+        n_steps=1_500_000,
+        batch_size=150_000,
+        minibatch_size=75_000,
         epochs=32,
         gamma=gamma,
         iterations_per_save=5
