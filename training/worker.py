@@ -47,7 +47,7 @@ def make_worker(host, name, password, limit_threads=True, send_gamestates=False,
     r = Redis(host=host, password=password)
     w = r.incr(WORKER_COUNTER) - 1
 
-    current_prob = .8
+    current_prob = .9
     eval_prob = 0.00
     game_speed = 100
     if is_streamer:
@@ -60,8 +60,8 @@ def make_worker(host, name, password, limit_threads=True, send_gamestates=False,
     return RedisRolloutWorker(r, name,
                               match=get_match(w, force_match_size, game_speed=game_speed),
                               # replay_arrays=replay_arrays),
-                              current_version_prob=current_prob,
-                              #past_version_prob=1-current_prob,
+                              #current_version_prob=current_prob,
+                              past_version_prob=1-current_prob,
                               evaluation_prob=eval_prob,
                               send_gamestates=send_gamestates#,
                               #display_only=False

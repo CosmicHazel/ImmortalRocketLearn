@@ -11,6 +11,7 @@ from redis import Redis
 from rlgym.utils.action_parsers import DiscreteAction
 from rlgym.utils.reward_functions import CombinedReward
 from rlgym.utils.reward_functions.common_rewards import VelocityPlayerToBallReward, VelocityReward
+from rlgym_tools.extra_action_parsers.kbm_act import KBMAction
 from torch.nn import Linear, Sequential
 
 from rocket_learn.utils.util import SplitLayer
@@ -24,6 +25,7 @@ from rocket_learn.agent.actor_critic_agent import ActorCriticAgent
 from rocket_learn.agent.discrete_policy import DiscretePolicy
 from rocket_learn.ppo import PPO
 from rocket_learn.rollout_generator.redis_rollout_generator import RedisRolloutGenerator, RedisRolloutWorker
+from training.parser import ImmortalAction
 
 
 class ExpandAdvancedObs(AdvancedObs):
@@ -37,7 +39,7 @@ def get_match():
         reward_function=CombinedReward.from_zipped((VelocityPlayerToBallReward(), 0.5),
                                                    (VelocityReward(), 0.5)),
         terminal_conditions=TimeoutCondition(75),
-        action_parser=DiscreteAction(),
+        action_parser=KBMAction(),
         obs_builder=ExpandAdvancedObs(),
         state_setter=DefaultState(),
         self_play=True,
@@ -49,15 +51,18 @@ def get_match():
 def make_worker(host, name, limit_threads=True):
     if limit_threads:
         torch.set_num_threads(1)
-    r = Redis(host=host, password="rocket-learn")
-    return RedisRolloutWorker(r, name, get_match(), past_version_prob=.1, evaluation_prob=0.0).run()
+
+    return RedisRolloutWorker(r, name, get_match(),
+                              #past_version_prob=.1,
+                              current_version_prob=.9,
+                              evaluation_prob=0.0).run()
 
 
 if __name__ == "__main__":
     wandb.login(key=os.environ["WANDB_KEY"])
     logger = wandb.init(project="rocket-learn", entity="cosmicvivacity")
 
-    redis = Redis(password="rocket-learn")
+
     rollout_gen = RedisRolloutGenerator(redis, save_every=10, logger=logger, act_parse_factory=DiscreteAction,
                                         obs_build_factory=ExpandAdvancedObs,
                                         rew_func_factory=lambda: CombinedReward.from_zipped(
@@ -65,7 +70,7 @@ if __name__ == "__main__":
                                             (VelocityReward(), 0.5)))
 
     critic = Sequential(Linear(107, 128), Linear(128, 64), Linear(64, 32), Linear(32, 1))
-    actor = DiscretePolicy(Sequential(Linear(107, 128), Linear(128, 64), Linear(64, 32), Linear(32, 21), SplitLayer()))
+    actor = DiscretePolicy(Sequential(Linear(107, 128), Linear(128, 64), Linear(64, 32), Linear(32, 12), SplitLayer()))
 
     lr = 1e-5
     optim = torch.optim.Adam([
