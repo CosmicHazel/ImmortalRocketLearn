@@ -41,9 +41,9 @@ if __name__ == "__main__":
     run_name = "512x5LeakyRelu"
     #run_id = "29suj5s9"
     run_id = None
-    file = None
+    #file = None
     #file = get_latest_checkpoint()
-    #file = "ppos\Immortal_1646072781.0598092\Immortal_770\checkpoint.pt"
+    file = "ppos/Immortal_1649232465.8672724/Immortal_830/checkpoint.pt"
 
     fps = 120 / frame_skip
     gamma = np.exp(np.log(0.5) / (fps * half_life_seconds))
@@ -74,7 +74,7 @@ if __name__ == "__main__":
 
     wandb.login(key=os.environ["WANDB_KEY"])
 
-    logger = wandb.init(project="Immortal", entity="cosmicvivacity", id=run_id, config=config)
+    logger = wandb.init(project="Immortal", entity="cosmicvivacity", id=run_id, config=config, settings=wandb.Settings(_disable_stats=True))
     torch.manual_seed(logger.config.seed)
     logger.name = run_name
     redis = Redis(host=ip, password=password)
@@ -85,8 +85,8 @@ if __name__ == "__main__":
                                             (VelocityPlayerToBallReward(), 0.4),
                                             (VelocityReward(), 0.6),
                                             (VelocityBallToGoalReward(), 2.0),
-                                            EventReward(team_goal=1000,
-                                                        save=500,
+                                            EventReward(team_goal=1200,
+                                                        save=200,
                                                         demo=500,
                                                         concede=-1000),
                                         ),
