@@ -117,3 +117,4 @@ ENV/
 /training/wandb/
 /training/replayfile1v1
 /rocket_learn/
+*rocket_learn/
